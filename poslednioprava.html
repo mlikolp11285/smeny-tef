@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Směny TEF & Předání směny</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .slider-container {
+            display: flex;
+            width: 200vw;
+            height: 100vh;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform;
+        }
+
+        .screen {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            box-sizing: border-box;
+            position: relative;
+            padding-top: 10px; 
+        }
+
+        .card {
+            background: #1e1e1e;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            text-align: center;
+            max-width: 440px;
+            width: 100%;
+            border: 1px solid #333;
+            box-sizing: border-box;
+            position: relative;
+            padding: 10px 14px;
+        }
+
+        /* 1. OBRAZOVKA (Směny TEF) - Zvětšeno o cca 1/6 */
+        .screen-tech .card { padding: 14px 18px; max-width: 460px; }
+        .screen-tech .clock { font-size: 28px !important; margin: 4px 0 !important; }
+        .screen-tech .shift-box { padding: 9px 12px !important; margin-bottom: 8px !important; }
+        .screen-tech .shift-type { font-size: 14.5px !important; }
+        .screen-tech .team-badge { font-size: 13px !important; padding: 2px 7px !important; }
+        .screen-tech .worker-row { padding: 5px 9px !important; margin-top: 4px !important; }
+        .screen-tech .worker-name { font-size: 13px !important; }
+        .screen-tech .worker-role { font-size: 9.5px !important; }
+        .screen-tech .call-btn { padding: 3px 8px !important; font-size: 12px !important; }
+
+        /* 2. OBRAZOVKA (Předání směny) - Zvětšeno jen nepatrně */
+        .screen-tef .card { padding: 11px 15px; }
+        .screen-tef .clock { font-size: 23px; margin: 2px 0; }
+        .screen-tef .shift-box { padding: 7px 10px; margin-bottom: 6px; }
+        .screen-tef .shift-type { font-size: 12.5px; }
+        .screen-tef .team-badge { font-size: 11.5px; }
+        .screen-tef .worker-row { padding: 3px 7px; margin-top: 3px; }
+        .screen-tef .worker-name { font-size: 11.5px; }
+        .screen-tef .worker-role { font-size: 8.5px; }
+        .screen-tef .call-btn { padding: 2px 6px; font-size: 10.5px; }
+        
+        .app-title-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 4px;
+            border-bottom: 1px solid #2c2c2c;
+            padding-bottom: 4px;
+        }
+
+        .app-title {
+            color: #3498db;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .app-author { font-size: 10px; color: #888; }
+        .app-author a { color: #3498db; text-decoration: none; font-weight: bold; }
+
+        .side-arrow {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(30, 30, 30, 0.75);
+            color: #3498db;
+            border: 1px solid #444;
+            width: 34px;
+            height: 44px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: background 0.2s, color 0.2s;
+        }
+        .side-arrow:active { background: #3498db; color: #fff; }
+        .arrow-left { left: 6px; }
+        .arrow-right { right: 6px; }
+
+        .pagination-dots {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 4px;
+        }
+        .dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background-color: #444;
+            transition: background-color 0.2s;
+        }
+        .dot.active {
+            background-color: #3498db;
+            width: 14px;
+            border-radius: 3px;
+        }
+
+        .date { font-size: 10.5px; color: #aaa; margin-bottom: 5px; }
+        
+        .shift-box {
+            background: #252525;
+            border: 1.5px solid #333;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .shift-box.current {
+            border-color: #3498db;
+            background-color: #162636;
+        }
+        .box-title { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: bold; margin-bottom: 2px; }
+        .shift-type { font-weight: bold; color: #ffffff; margin: 2px 0; display: flex; justify-content: space-between; align-items: center; }
+        .team-badge {
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 4px;
+            color: white;
+        }
+        
+        .team-A { background-color: #27ae60; }
+        .team-B { background-color: #e67e22; }
+        .team-C { background-color: #2980b9; }
+        .team-D { background-color: #8e44ad; }
+
+        .workers { margin-top: 2px; }
+        .worker-row { 
+            background: #2a2a2a; 
+            border-radius: 4px; 
+            border: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .worker-info {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            text-align: left;
+        }
+        .worker-role {
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #3498db;
+            font-weight: bold;
+        }
+        .worker-name { font-weight: bold; color: #ffffff; }
+
+        .call-btn {
+            background-color: #27ae60;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            white-space: nowrap;
+        }
+        .call-btn:hover { background-color: #219653; }
+    </style>
+</head>
+<body>
+
+<div class="slider-container" id="slider">
+    
+    <!-- OBRAZOVKA 1: Směny TEF (Elektrikáři a Mechanici) -->
+    <div class="screen screen-tech">
+        <button class="side-arrow arrow-right" onclick="switchToScreen(1)" title="Předání směny">▶</button>
+
+        <div class="card">
+            <div class="app-title-wrapper">
+                <div class="app-title">⚡ Směny TEF</div>
+                <div class="app-author">Vytvořil: <a href="mailto:michal.travniicek@gmail.com">michal.travniicek@gmail.com</a></div>
+            </div>
+            
+            <div class="pagination-dots">
+                <div class="dot active" id="dot-0-tech"></div>
+                <div class="dot" id="dot-1-tech"></div>
+            </div>
+
+            <div class="clock" id="clock-1">00:00:00</div>
+            <div class="date" id="date-1">--.--.----</div>
+
+            <div class="shift-box current" style="margin-bottom: 8px;">
+                <div class="box-title">Právě probíhá</div>
+                <div class="shift-type" id="cur-shift-title-1">Načítání...</div>
+                <div class="workers" id="cur-workers-1"></div>
+            </div>
+
+            <div class="shift-box">
+                <div class="box-title">Následuje</div>
+                <div class="shift-type" id="next-shift-title-1">Načítání...</div>
+                <div class="workers" id="next-workers-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OBRAZOVKA 2: Předání směny (Mistři a Seřizovači) -->
+    <div class="screen screen-tef">
+        <button class="side-arrow arrow-left" onclick="switchToScreen(0)" title="Směny TEF">◀</button>
+
+        <div class="card">
+            <div class="app-title-wrapper">
+                <div class="app-title">🔄 Předání směny</div>
+                <div class="app-author">Vytvořil: <a href="mailto:michal.travniicek@gmail.com">michal.travniicek@gmail.com</a></div>
+            </div>
+            
+            <div class="pagination-dots">
+                <div class="dot" id="dot-0-tef"></div>
+                <div class="dot active" id="dot-1-tef"></div>
+            </div>
+
+            <div class="clock" id="clock-2">00:00:00</div>
+            <div class="date" id="date-2">--.--.----</div>
+
+            <div class="shift-box current" style="margin-bottom: 5px;">
+                <div class="box-title">Právě probíhá</div>
+                <div class="shift-type" id="cur-shift-title-2">Načítání...</div>
+                <div class="workers" id="cur-workers-2"></div>
+            </div>
+
+            <div class="shift-box">
+                <div class="box-title">Následuje</div>
+                <div class="shift-type" id="next-shift-title-2">Načítání...</div>
+                <div class="workers" id="next-workers-2"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const teamsTech = {
+        'A': {
+            colorClass: "team-A",
+            workers: [
+                { role: "Elektrikář", name: "Bruna Jiří", phone: "799073546", phoneFormatted: "799 073 546" },
+                { role: "Zástupce EL", name: "Novák David", phone: "799073545", phoneFormatted: "799 073 545" },
+                { role: "Mechanik", name: "Moravec Jiří", phone: "799073581", phoneFormatted: "799 073 581" },
+                { role: "Zástupce MECH", name: "Rychetský Luboš", phone: "799073553", phoneFormatted: "799 073 553" }
+            ]
+        },
+        'B': {
+            colorClass: "team-B",
+            workers: [
+                { role: "Elektrikář", name: "Pavelec Marek", phone: "799073596", phoneFormatted: "799 073 596" },
+                { role: "Zástupce EL", name: "Staněk Jan", phone: "799073595", phoneFormatted: "799 073 595" },
+                { role: "Mechanik", name: "Rippel Aleš", phone: "799073493", phoneFormatted: "799 073 493" },
+                { role: "Zástupce MECH", name: "Berka Adam", phone: "799073494", phoneFormatted: "799 073 494" }
+            ]
+        },
+        'C': {
+            colorClass: "team-C",
+            workers: [
+                { role: "Elektrikář", name: "Štěpánek Pavel", phone: "799073560", phoneFormatted: "799 073 560" },
+                { role: "Zástupce EL", name: "Barták Daniel", phone: "799073559", phoneFormatted: "799 073 559" },
+                { role: "Mechanik", name: "Jirák Zdeněk", phone: "799073562", phoneFormatted: "799 073 562" },
+                { role: "Zástupce MECH", name: "Gráf Milan", phone: "799073561", phoneFormatted: "799 073 561" }
+            ]
+        },
+        'D': {
+            colorClass: "team-D",
+            workers: [
+                { role: "Elektrikář", name: "Jašek Dominik", phone: "799073579", phoneFormatted: "799 073 579" },
+                { role: "Zástupce EL", name: "Marek Bohumil", phone: "799073578", phoneFormatted: "799 073 578" },
+                { role: "Mechanik", name: "Klusáček Stanis.", phone: "799073577", phoneFormatted: "799 073 577" },
+                { role: "Zástupce MECH", name: "Svoboda Tomáš", phone: "799073576", phoneFormatted: "799 073 576" }
+            ]
+        }
+    };
+
+    const teamsTEF = {
+        'A': {
+            colorClass: "team-A",
+            workers: [
+                { role: "Hlavní mistr", name: "Marek Paseka", phone: "730846713", phoneFormatted: "730 846 713", morningOnly: true, weekdaysOnly: true },
+                { role: "Směnový mistr", name: "Pešík Martin", phone: "705567897", phoneFormatted: "705 567 897", morningOnly: false },
+                { role: "Hlavní seřizovač SH05", name: "Golovin Maksym", phone: "703492316", phoneFormatted: "703 492 316", morningOnly: false },
+                { role: "Hlavní seřizovač SH06", name: "Uxa Zdeněk", phone: "705567905", phoneFormatted: "705 567 905", morningOnly: false },
+                { role: "Milkrun", name: "dle směny", phone: "730846748", phoneFormatted: "730 846 748", morningOnly: false },
+                { role: "Specialista ranní", name: "Brychta Jindřich", phone: "705567899", phoneFormatted: "705 567 899", morningOnly: true, weekdaysOnly: true }
+            ]
+        },
+        'B': {
+            colorClass: "team-B",
+            workers: [
+                { role: "Hlavní mistr", name: "Marek Paseka", phone: "730846713", phoneFormatted: "730 846 713", morningOnly: true, weekdaysOnly: true },
+                { role: "Směnový mistr", name: "Paluska Petr", phone: "705567902", phoneFormatted: "705 567 902", morningOnly: false },
+                { role: "Hlavní seřizovač SH05", name: "Syrkyziuk Nazar", phone: "703492012", phoneFormatted: "703 492 012", morningOnly: false },
+                { role: "Hlavní seřizovač SH06", name: "Čermák Lukáš", phone: "705567891", phoneFormatted: "705 567 891", morningOnly: false },
+                { role: "Milkrun", name: "dle směny", phone: "730846748", phoneFormatted: "730 846 748", morningOnly: false },
+                { role: "Specialista ranní", name: "Brychta Jindřich", phone: "705567899", phoneFormatted: "705 567 899", morningOnly: true, weekdaysOnly: true }
+            ]
+        },
+        'C': {
+            colorClass: "team-C",
+            workers: [
+                { role: "Hlavní mistr", name: "Marek Paseka", phone: "730846713", phoneFormatted: "730 846 713", morningOnly: true, weekdaysOnly: true },
+                { role: "Směnový mistr", name: "Krul Oldřich", phone: "705567909", phoneFormatted: "705 567 909", morningOnly: false },
+                { role: "Hlavní seřizovač SH05", name: "Flek Ondřej", phone: "703471617", phoneFormatted: "703 471 617", morningOnly: false },
+                { role: "Hlavní seřizovač SH06", name: "Smrčka Libor", phone: "705567890", phoneFormatted: "705 567 890", morningOnly: false },
+                { role: "Milkrun", name: "dle směny", phone: "730846748", phoneFormatted: "730 846 748", morningOnly: false },
+                { role: "Specialista ranní", name: "Brychta Jindřich", phone: "705567899", phoneFormatted: "705 567 899", morningOnly: true, weekdaysOnly: true }
+            ]
+        },
+        'D': {
+            colorClass: "team-D",
+            workers: [
+                { role: "Hlavní mistr", name: "Marek Paseka", phone: "730846713", phoneFormatted: "730 846 713", morningOnly: true, weekdaysOnly: true },
+                { role: "Směnový mistr", name: "Škaryd David", phone: "705567903", phoneFormatted: "705 567 903", morningOnly: false },
+                { role: "Hlavní seřizovač SH05", name: "Běhan Jiří", phone: "703471535", phoneFormatted: "703 471 535", morningOnly: false },
+                { role: "Hlavní seřizovač SH06", name: "Trávníček Michal", phone: "703492145", phoneFormatted: "703 492 145", morningOnly: false },
+                { role: "Milkrun", name: "dle směny", phone: "730846748", phoneFormatted: "730 846 748", morningOnly: false },
+                { role: "Specialista ranní", name: "Brychta Jindřich", phone: "705567899", phoneFormatted: "705 567 899", morningOnly: true, weekdaysOnly: true }
+            ]
+        }
+    };
+
+    const scheduleTech = {
+        2026: {
+            9: { 
+                R: ['C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B'],
+                N: ['B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A']
+            },
+            10: { 
+                R: ['C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A'],
+                N: ['B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D']
+            },
+            11: { 
+                R: ['B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A'],
+                N: ['A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D']
+            }
+        },
+        2027: {
+            0: { R: ['A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D'], N: ['D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C'] },
+            1: { R: ['A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B'], N: ['D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C'] },
+            2: { R: ['C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B'], N: ['B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A'] },
+            3: { R: ['B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A'], N: ['A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D'] },
+            4: { R: ['A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D'], N: ['D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C'] },
+            5: { R: ['D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C'], N: ['C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','C'] },
+            6: { R: ['C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B'], N: ['B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A'] },
+            7: { R: ['B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A'], N: ['A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D'] },
+            8: { R: ['A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C'], N: ['D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C'] },
+            9: { R: ['D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C'], N: ['C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B'] },
+            10: { R: ['C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A'], N: ['B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A'] },
+            11: { R: ['B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A'], N: ['A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D'] }
+        }
+    };
+
+    const scheduleTEV = {
+        2026: {
+            9: { 
+                R: ['C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B'],
+                N: ['B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A']
+            },
+            10: { // Listopad (index 10) - Opraveno, aby 10. dne (index 9) bylo R=A a N=C
+                R: ['C','D','D','A','A','B','B','C','C','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C'],
+                N: ['B','C','C','D','D','A','A','B','B','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A']
+            },
+            11: { 
+                R: ['B','C','C','D','D','D','A','A','B','B','C','C','C','D','D','A','A','B','B','B','C','C','D','D','A','A','A','B','B','C','C'],
+                N: ['D','A','A','B','B','B','C','C','D','D','A','A','A','B','B','C','C','D','D','D','A','A','B','B','C','C','C','D','D','A','A']
+            }
+        },
+        2027: {
+            0: { R: ['D','D','D','A','A','B','B','C','C','C','D','D','A','A','B','B','B','C','C','D','D','A','A','A','B','B','C','C','D','D','D'], N: ['B','B','B','C','C','D','D','A','A','A','B','B','C','C','D','D','D','A','A','B','B','C','C','C','D','D','A','A','B','B','B'] },
+            1: { R: ['A','A','B','B','C','C','C','D','D','A','A','B','B','B','C','C','D','D','A','A','A','B','B','C','C','D','D','D'], N: ['C','C','D','D','A','A','A','B','B','C','C','D','D','D','A','A','B','B','C','C','C','D','D','A','A','B','B','B'] },
+            2: { R: ['A','A','B','B','C','C','C','D','D','A','A','B','B','B','C','C','D','D','A','A','A','B','B','C','C','D','D','D','A','A','B'], N: ['C','C','D','D','A','A','A','B','B','C','C','D','D','D','A','A','B','B','C','C','C','D','D','A','A','B','B','B','C','C','D'] },
+            3: { R: ['B','C','C','C','D','D','A','A','B','B','B','C','C','D','D','A','A','A','B','B','C','C','D','D','D','A','A','B','B','C'], N: ['D','A','A','A','B','B','C','C','D','D','D','A','A','B','B','C','C','C','D','D','A','A','B','B','B','C','C','D','D','A'] },
+            4: { R: ['C','C','D','D','A','A','B','B','B','C','C','D','D','A','A','A','B','B','C','C','D','D','D','A','A','B','B','C','C','C','D'], N: ['A','A','B','B','C','C','D','D','D','A','A','B','B','C','C','C','D','D','A','A','B','B','B','C','C','D','D','A','A','A','B'] },
+            5: { R: ['D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C'], N: ['C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','C'] },
+            6: { R: ['C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B'], N: ['B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A'] },
+            7: { R: ['B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A'], N: ['A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D'] },
+            8: { R: ['A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C'], N: ['D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C'] },
+            9: { R: ['D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C'], N: ['C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B'] },
+            10: { R: ['C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A'], N: ['B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A'] },
+            11: { R: ['B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A'], N: ['A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D','A','A','B','B','C','C','D','D'] }
+        }
+    };
+
+    const teamKeysList = ['A', 'B', 'C', 'D'];
+    let currentScreen = 0;
+
+    function switchToScreen(index) {
+        currentScreen = index;
+        const slider = document.getElementById('slider');
+        slider.style.transform = `translateX(-${index * 100}vw)`;
+
+        document.getElementById('dot-0-tech').classList.toggle('active', index === 0);
+        document.getElementById('dot-1-tech').classList.toggle('active', index === 1);
+        document.getElementById('dot-0-tef').classList.toggle('active', index === 0);
+        document.getElementById('dot-1-tef').classList.toggle('active', index === 1);
+    }
+
+    let touchstartX = 0;
+    let touchendX = 0;
+    let touchstartY = 0;
+    let touchendY = 0;
+
+    document.addEventListener('touchstart', e => {
+        touchstartX = e.changedTouches[0].screenX;
+        touchstartY = e.changedTouches[0].screenY;
+    }, {passive: true});
+
+    document.addEventListener('touchend', e => {
+        touchendX = e.changedTouches[0].screenX;
+        touchendY = e.changedTouches[0].screenY;
+        
+        let diffX = touchendX - touchstartX;
+        let diffY = touchendY - touchstartY;
+
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+            if (diffX < 0 && currentScreen === 0) {
+                switchToScreen(1);
+            } else if (diffX > 0 && currentScreen === 1) {
+                switchToScreen(0);
+            }
+        }
+    }, {passive: true});
+
+    function getSafeTeam(dateObj, shiftKind, schedObj) {
+        try {
+            let y = dateObj.getFullYear();
+            let m = dateObj.getMonth();
+            let d = dateObj.getDate() - 1;
+            
+            if (schedObj[y] && schedObj[y][m] && schedObj[y][m][shiftKind]) {
+                let monthArr = schedObj[y][m][shiftKind];
+                if (d >= monthArr.length) d = monthArr.length - 1;
+                if (d < 0) d = 0;
+                return monthArr[d];
+            }
+        } catch(e) {}
+        return 'A';
+    }
+
+    function renderWorkersHTML(workers, isNightShift, dateObj) {
+        let dayOfWeek = dateObj.getDay();
+        let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+        const filtered = workers.filter(w => {
+            if (isNightShift && w.morningOnly) return false;
+            if (isWeekend && w.weekdaysOnly) return false;
+            return true;
+        });
+
+        return filtered.map(w => `
+            <div class="worker-row">
+                <div class="worker-info">
+                    <span class="worker-role">${w.role}</span>
+                    <span class="worker-name">${w.name}</span>
+                </div>
+                <a class="call-btn" href="tel:${w.phone}">📞 ${w.phoneFormatted}</a>
+            </div>
+        `).join('');
+    }
+
+    function renderScreenData(clockId, dateId, currWorkersId, nextWorkersId, schedObj, teamList) {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
+
+        const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        const dateStr = now.toLocaleDateString('cs-CZ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        document.getElementById(clockId).innerText = timeStr;
+        document.getElementById(dateId).innerText = dateStr;
+
+        let curDate = new Date(now);
+        let nextDate = new Date(now);
+        let curShiftKind, nextShiftKind;
+        let curName, curTime, nextName, nextTime;
+
+        if (hours < 6) {
+            curDate.setDate(curDate.getDate() - 1);
+            curShiftKind = 'N';
+            nextShiftKind = 'R';
+            curName = "🌙 Noční"; curTime = "18:00 - 06:00";
+            nextName = "☀️ Ranní"; nextTime = "06:00 - 18:00";
+            nextDate = new Date(now);
+        } else if (hours >= 18) {
+            curDate = new Date(now);
+            curShiftKind = 'N';
+            nextShiftKind = 'R';
+            curName = "🌙 Noční"; curTime = "18:00 - 06:00";
+            nextName = "☀️ Ranní"; nextTime = "06:00 - 18:00";
+            nextDate.setDate(nextDate.getDate() + 1);
+        } else {
+            curDate = new Date(now);
+            curShiftKind = 'R';
+            nextShiftKind = 'N';
+            curName = "☀️ Ranní"; curTime = "06:00 - 18:00";
+            nextName = "🌙 Noční"; nextTime = "18:00 - 06:00";
+            nextDate = new Date(now); 
+        }
+
+        let curTeam = getSafeTeam(curDate, curShiftKind, schedObj);
+        let nextTeam = getSafeTeam(nextDate, nextShiftKind, schedObj);
+
+        document.getElementById(currWorkersId).previousElementSibling.innerHTML = `<span>${curName} (${curTime})</span> <span class="team-badge team-${curTeam}">${curTeam}</span>`;
+        document.getElementById(currWorkersId).innerHTML = renderWorkersHTML(teamList[curTeam].workers, (curShiftKind === 'N'), curDate);
+
+        document.getElementById(nextWorkersId).previousElementSibling.innerHTML = `<span>${nextName} (${nextTime})</span> <span class="team-badge team-${nextTeam}">${nextTeam}</span>`;
+        document.getElementById(nextWorkersId).innerHTML = renderWorkersHTML(teamList[nextTeam].workers, (nextShiftKind === 'N'), nextDate);
+    }
+
+    function update() {
+        renderScreenData('clock-1', 'date-1', 'cur-workers-1', 'next-workers-1', scheduleTech, teamsTech);
+        renderScreenData('clock-2', 'date-2', 'cur-workers-2', 'next-workers-2', scheduleTEV, teamsTEF);
+    }
+
+    setInterval(update, 1000);
+    update();
+</script>
+
+</body>
+</html>
